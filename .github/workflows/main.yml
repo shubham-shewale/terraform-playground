@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  test-oidc:
+  terraform-Iac:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,9 +27,9 @@ jobs:
 
       - name: List files in the workspace
         run: ls -R
-        
+
       - run: terraform init
-        working-directory: base-vpc/
+        working-directory: basic-vpc/
 
       - run: terraform apply -auto-approve
-        working-directory: base-vpc/
+        working-directory: basic-vpc/
