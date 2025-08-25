@@ -31,5 +31,5 @@ jobs:
       - run: terraform init
         working-directory: static-website/
 
-      - run: terraform destroy -auto-approve
+      - run: terraform apply -auto-approve
         working-directory: static-website/
