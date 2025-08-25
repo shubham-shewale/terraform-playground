@@ -13,7 +13,6 @@ permissions:
 jobs:
   test-oidc:
     runs-on: ubuntu-latest
-    environment: terraform-infra
     steps:
       - uses: actions/checkout@v4
 
@@ -26,6 +25,9 @@ jobs:
         with:
           terraform_version: 1.9.5
 
+      - name: List files in the workspace
+        run: ls -R
+        
       - run: terraform init
         working-directory: base-vpc/
 
