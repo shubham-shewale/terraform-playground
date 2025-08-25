@@ -5,4 +5,4 @@
 
 # Architecture diagram
 
-![Alternative text for the image](Basic-VPC.png)
+![Alternative text for the image](static-website.png)
