@@ -1,6 +1,7 @@
 variable "domain_name" {
   description = "The domain name for the website (e.g., example.com)"
   type        = string
+  default = "211125418662.realhandsonlabs.net"
 }
 
 locals {
