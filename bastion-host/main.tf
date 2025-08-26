@@ -1,0 +1,53 @@
+terraform {
+    backend "s3" {
+    bucket         = "my-terraform-bastion-host-381492134996"
+    key            = "terraform-playground-bastion-host.tfstate"
+    region         = "us-east-1"
+  }
+
+    required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
+}
+
+module "vpc" {
+  source               = "./modules/vpc"
+  cidr_block           = var.vpc_cidr
+  azs                  = var.azs
+  public_subnet_cidrs  = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
+}
+
+module "security_group" {
+  source = "./modules/security_group"
+  vpc_id = module.vpc.vpc_id
+}
+
+module "key_pair" {
+  source          = "./modules/key_pair"
+  key_name        = var.key_name
+  public_key_path = var.public_key_path
+}
+
+module "bastion" {
+  source            = "./modules/bastion"
+  subnet_id         = module.vpc.public_subnet_ids[0]
+  key_name          = module.key_pair.key_name
+  security_group_id = module.security_group.security_group_id
+  ami               = var.bastion_ami
+}
+
+module "private_instance" {
+  source            = "./modules/private_instance"
+  subnet_id         = module.vpc.private_subnet_ids[0]
+  key_name          = module.key_pair.key_name
+  security_group_id = module.security_group.security_group_id
+  ami               = var.private_ami
+}

@@ -6,6 +6,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ "main" ]
+
 permissions:
   id-token: write
   contents: read
@@ -18,9 +19,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::211125418662:role/aws-terraform-developer
+          role-to-assume: arn:aws:iam::381492134996:role/aws-terraform-developer
           aws-region: us-east-1
-
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.5
@@ -29,7 +29,12 @@ jobs:
         run: ls -R
 
       - run: terraform init
-        working-directory: static-website/
+        working-directory: bastion-host/
 
-      - run: terraform destroy -auto-approve
-        working-directory: static-website/
+      - run: terraform apply -auto-approve
+        working-directory: bastion-host/
+
+      - name: Manually destroy infrastructure
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform destroy -auto-approve
+        working-directory: bastion-host/
