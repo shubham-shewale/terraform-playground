@@ -1,7 +1,7 @@
 variable "domain_name" {
   description = "The domain name for the website (e.g., example.com)"
   type        = string
-  default = "211125418662.realhandsonlabs.net"
+  default     = "211125418662.realhandsonlabs.net"
 }
 
 locals {
@@ -205,7 +205,7 @@ resource "aws_cloudfront_distribution" "main" {
     response_page_path = "/error.html"
   }
 
-  price_class = "PriceClass_100"  # Adjust based on needs
+  price_class = "PriceClass_100" # Adjust based on needs
 
   restrictions {
     geo_restriction {

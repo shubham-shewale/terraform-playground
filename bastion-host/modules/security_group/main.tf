@@ -8,7 +8,7 @@ resource "aws_security_group" "this" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]   # Replace with corporate IP range
+    cidr_blocks = ["0.0.0.0/0"] # Replace with corporate IP range
   }
 
   egress {

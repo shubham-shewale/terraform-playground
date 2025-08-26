@@ -8,7 +8,7 @@ resource "aws_security_group" "public_sg" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Allow public access; restrict to specific IPs in production
+    cidr_blocks = ["0.0.0.0/0"] # Allow public access; restrict to specific IPs in production
   }
 
   egress {
@@ -32,7 +32,7 @@ resource "aws_security_group" "private_sg" {
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
-    security_groups = [aws_security_group.public_sg.id]  # Allow from public instance
+    security_groups = [aws_security_group.public_sg.id] # Allow from public instance
   }
 
   egress {
@@ -106,5 +106,5 @@ resource "aws_instance" "public" {
     Environment = var.environment
   }
 
-  depends_on = [aws_instance.private]  # Ensure private is created first
+  depends_on = [aws_instance.private] # Ensure private is created first
 }

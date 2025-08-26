@@ -1,11 +1,11 @@
 terraform {
-    backend "s3" {
-    bucket         = "my-terraform-bastion-host-381492134996"
-    key            = "terraform-playground-bastion-host.tfstate"
-    region         = "us-east-1"
+  backend "s3" {
+    bucket = "my-terraform-bastion-host-381492134996"
+    key    = "terraform-playground-bastion-host.tfstate"
+    region = "us-east-1"
   }
 
-    required_providers {
+  required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
@@ -25,7 +25,7 @@ data "aws_ami" "amazon_linux" {
     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
 
-  owners = ["137112412989"]  # Amazon
+  owners = ["137112412989"] # Amazon
 }
 
 module "vpc" {
@@ -42,9 +42,9 @@ module "security_group" {
 }
 
 module "key_pair" {
-  source          = "./modules/key_pair"
-  key_name        = var.key_name
-  public_key      = var.public_key
+  source     = "./modules/key_pair"
+  key_name   = var.key_name
+  public_key = var.public_key
 }
 
 module "bastion" {
