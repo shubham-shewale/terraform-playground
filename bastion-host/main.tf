@@ -33,7 +33,7 @@ module "security_group" {
 module "key_pair" {
   source          = "./modules/key_pair"
   key_name        = var.key_name
-  public_key_path = var.public_key_path
+  public_key      = var.public_key
 }
 
 module "bastion" {
