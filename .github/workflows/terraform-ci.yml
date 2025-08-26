@@ -59,7 +59,7 @@ jobs:
         run: |
           for dir in basic-vpc bastion-host static-website; do
             cd $dir
-            terraform init -backend=false
+            terraform init
             cd ..
           done
 
