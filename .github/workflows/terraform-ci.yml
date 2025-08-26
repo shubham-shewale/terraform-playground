@@ -1,0 +1,118 @@
+name: Terraform CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  terraform-ci:
+    runs-on: ubuntu-latest
+
+    # Define environment variables for AWS region and Terraform version
+    env:
+      AWS_REGION: us-east-1
+      TF_VERSION: 1.5.7
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Configure AWS credentials using a role
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::381492134996:role/aws-terraform-developer
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Set up Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # Install tflint for linting Terraform code
+      - name: Setup tflint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.50.0
+
+      # Install Trivy for security scanning (includes tfsec)
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.53.0
+
+      # Initialize Terraform for each directory
+      - name: Terraform Init
+        run: |
+          for dir in basic-vpc bastion-host static-website; do
+            cd $dir
+            terraform init -backend=false
+            cd ..
+          done
+
+      # Check Terraform formatting
+      - name: Terraform Format
+        run: |
+          for dir in basic-vpc bastion-host static-website; do
+            cd $dir
+            terraform fmt -check -recursive
+            cd ..
+          done
+        continue-on-error: false
+
+      # Validate Terraform configuration
+      - name: Terraform Validate
+        run: |
+          for dir in basic-vpc bastion-host static-website; do
+            cd $dir
+            terraform validate
+            cd ..
+          done
+
+      # Run tflint to check for best practices and potential issues
+      - name: Run tflint
+        run: |
+          for dir in basic-vpc bastion-host static-website; do
+            cd $dir
+            tflint --config=../.tflint.hcl
+            cd ..
+          done
+
+      # Run Trivy for security scanning
+      - name: Run Trivy Security Scan
+        run: |
+          for dir in basic-vpc bastion-host static-website; do
+            cd $dir
+            trivy config .
+            cd ..
+          done
+
+      # Check for sensitive data exposure using git-secrets
+      - name: Install and Run git-secrets
+        run: |
+          sudo apt-get update && sudo apt-get install -y git-secrets
+          git-secrets scan
+
+      # Optional: Run a plan to check for errors (no credentials needed for dry run)
+      - name: Terraform Plan
+        run: |
+          for dir in basic-vpc bastion-host static-website; do
+            cd $dir
+            terraform plan -out=tfplan -no-color
+            cd ..
+          done
+
+      # Archive Terraform plan output as artifact
+      - name: Archive Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            basic-vpc/tfplan
+            bastion-host/tfplan
+            static-website/tfplan
+          retention-days: 7
