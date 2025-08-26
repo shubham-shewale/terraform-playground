@@ -37,16 +37,3 @@ rule "terraform_deprecated_index" {
 rule "terraform_standard_module_structure" {
   enabled = true
 }
-
-# AWS-specific rules
-rule "aws_instance_invalid_type" {
-  enabled = true
-}
-
-rule "aws_s3_bucket_name" {
-  enabled = true
-}
-
-rule "aws_security_group_rule_description" {
-  enabled = true
-}
