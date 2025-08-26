@@ -44,6 +44,11 @@ jobs:
         with:
           tflint_version: v0.50.0
 
+      # Initialize tflint plugins
+      - name: Initialize tflint plugins
+        run: |
+          tflint --init --config=.tflint.hcl
+
       # Install Trivy for security scanning (includes tfsec)
       - name: Install Trivy
         run: |
