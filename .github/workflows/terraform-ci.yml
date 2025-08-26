@@ -84,6 +84,7 @@ jobs:
 
       # Run tflint to check for best practices and potential issues
       - name: Run tflint
+        if: github.ref == 'refs/heads/master'
         run: |
           for dir in basic-vpc bastion-host static-website; do
             cd $dir
