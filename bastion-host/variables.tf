@@ -26,15 +26,9 @@ variable "private_subnet_cidrs" {
   default     = ["172.16.10.0/24"]
 }
 
-variable "key_name" {
-  description = "Key pair name"
-  default     = "default_key_pair"
-}
+variable "key_name" {}
 
-variable "public_key_path" {
-  description = "Path to your public key"
-  default     = "~/.ssh/id_rsa.pub"
-}
+variable "public_key" {}
 
 variable "bastion_ami" {
   description = "AMI for bastion host (e.g., Amazon Linux 2023)"

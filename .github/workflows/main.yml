@@ -33,6 +33,9 @@ jobs:
 
       - run: terraform apply -auto-approve
         working-directory: bastion-host/
+        env:
+        TF_VAR_public_key: ${{ secrets.TF_VAR_public_key }}
+        TF_VAR_key_name:  ${{ secrets.TF_VAR_key_name }}
 
       - name: Manually destroy infrastructure
         if: github.event_name == 'workflow_dispatch'
