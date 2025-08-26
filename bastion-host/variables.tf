@@ -33,13 +33,3 @@ variable "key_name" {
 variable "public_key" {
   description = "Path to your public key"
 }
-
-variable "bastion_ami" {
-  description = "AMI for bastion host (e.g., Amazon Linux 2023)"
-  default     = "ami-0123456789abcdef0"
-}
-
-variable "private_ami" {
-  description = "AMI for private instance"
-  default     = "ami-0123456789abcdef0"
-}
