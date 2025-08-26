@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "my-terraform-bastion-host-381492134996"
+    bucket = "my-terraform-state-bucket-381492134996"
     key    = "terraform-playground-bastion-host.tfstate"
     region = "us-east-1"
   }
