@@ -1,16 +1,50 @@
-## Bastion Host Environment (AWS)
+# Bastion Host Environment (AWS)
 
-This Terraform configuration provisions a minimal AWS environment for secure access to private resources via a bastion host. It creates a VPC with public and private subnets, a bastion EC2 instance in the public subnet, a private EC2 instance in the private subnet, security groups, an EC2 key pair, and basic IAM/CloudWatch/SNS resources for observability.
+This Terraform configuration provisions a secure bastion host environment for accessing private AWS resources. It creates a hardened VPC infrastructure with comprehensive security controls, encrypted instances, monitoring, and secure access management.
 
-### What gets created
-- **VPC** with one public and one private subnet (single AZ by default)
-- **Security Group** allowing SSH to bastion from configured CIDRs and internal access to the private instance
-- **EC2 Key Pair** (from your provided public key)
-- **Bastion host** (Amazon Linux 2) in the public subnet with an IAM role and instance profile
-- **Private EC2 instance** (Amazon Linux 2) in the private subnet
-- **CloudWatch** log group and a sample metric alarm (SSH login attempts) with an **SNS** topic for alerts
+## 🏗️ Architecture Overview
 
-> Note: The Terraform state is configured to use an S3 backend in `main.tf`. Ensure the bucket exists or adjust the backend configuration before running.
+The configuration creates a secure bastion host setup with:
+- **Network Security**: VPC with public/private subnets, VPC Flow Logs, and secure routing
+- **Instance Security**: Hardened bastion and private instances with encryption and monitoring
+- **Access Control**: Restricted SSH access with key-based authentication and fail2ban
+- **Monitoring & Auditing**: CloudTrail, CloudWatch alarms, and comprehensive logging
+- **Remote Management**: Secure access patterns without exposing private resources
+
+## 📦 What Gets Created
+
+### Network Infrastructure
+- **VPC** with DNS support and VPC Flow Logs
+- **Public subnet** for bastion host access
+- **Private subnet** for protected resources
+- **Internet Gateway** and **NAT Gateway** for controlled egress
+- **Security Groups** with least-privilege access rules
+
+### Compute Resources
+- **Bastion Host** in public subnet with security hardening
+- **Private EC2 instance** in private subnet
+- **Encrypted EBS volumes** with automatic encryption
+- **Detailed monitoring** enabled for all instances
+- **Fail2ban integration** for SSH protection
+
+### Security & Access Control
+- **SSH Key Pair** for secure authentication
+- **IAM roles** with minimal required permissions
+- **Security hardening** scripts for OS protection
+- **Network ACLs** for additional traffic filtering
+
+### Monitoring & Logging
+- **CloudTrail** for API call auditing
+- **CloudWatch alarms** for SSH login attempts
+- **SNS notifications** for security alerts
+- **VPC Flow Logs** for network monitoring
+
+### Storage & Backup
+- **Encrypted S3 buckets** for CloudTrail logs
+- **Versioning and lifecycle policies**
+- **Public access blocks** and security policies
+
+> **Note**: The Terraform state is configured to use an S3 backend in `main.tf`. Ensure the bucket exists or adjust the backend configuration before running.
 
 ### Prerequisites
 - Terraform v1.3+ (or compatible)
@@ -57,16 +91,29 @@ terraform apply
    ssh -i ~/.ssh/my-key ec2-user@$(terraform output -raw private_instance_ip)
    ```
 
-### Inputs
+## 🔧 Configuration Variables
+
+### Required Variables
+- `key_name` (string) – **REQUIRED**: Name for the EC2 key pair
+- `public_key` (string) – **REQUIRED**: Public key content or `file("<path>")`
+- `allowed_ssh_cidrs` (list(string)) – **REQUIRED**: CIDR blocks allowed SSH access (no default for security)
+
+### Optional Variables
 - `region` (string) – AWS region. Default: `us-east-1`
 - `vpc_cidr` (string) – VPC CIDR block. Default: `172.16.0.0/16`
 - `azs` (list(string)) – Availability Zones. Default: `["us-east-1a"]`
 - `public_subnet_cidrs` (list(string)) – Public subnet CIDRs. Default: `["172.16.1.0/24"]`
 - `private_subnet_cidrs` (list(string)) – Private subnet CIDRs. Default: `["172.16.10.0/24"]`
-- `key_name` (string) – Name for the EC2 key pair. Required
-- `public_key` (string) – Public key content or `file("<path>")`. Required
-- `allowed_ssh_cidrs` (list(string)) – CIDRs allowed to SSH to bastion. Default: `["0.0.0.0/0"]` (change in production)
-- `environment` (string) – Tagging/environment label. Default: `dev`
+- `environment` (string) – Environment tag. Default: `dev`
+
+## ⚠️ Security Configuration
+
+**Critical Security Notice**: For production deployments, you must explicitly set:
+```hcl
+allowed_ssh_cidrs = ["YOUR_TRUSTED_IP_RANGE/32"]  # Replace with your IP
+```
+
+Default unrestricted access (`0.0.0.0/0`) has been removed for security. Only explicitly allowed IP ranges can access the bastion host.
 
 ### Outputs
 - `vpc_id` – Created VPC ID
@@ -77,16 +124,41 @@ terraform apply
 - `bastion_public_ip` – Public IPv4 of the bastion host
 - `private_instance_ip` – Private IPv4 of the private instance
 
-### Module and resource flow
-The top-level `main.tf` wires together the following components:
-- `module "vpc"` – Provisions VPC, one public and one private subnet based on inputs
-- `module "security_group"` – Creates an SG for SSH ingress to bastion and internal access
-- `module "key_pair"` – Registers your provided public key as an EC2 key pair
-- `module "bastion"` – Launches a bastion EC2 instance in the public subnet, attaches SG, key, IAM instance profile
-- `module "private_instance"` – Launches a private EC2 instance in the private subnet, attached to the internal SG
-- IAM role/policy/instance profile for the bastion plus CloudWatch log group and a sample SSH attempts alarm that publishes to an SNS topic
+## 🏛️ Architecture Components
 
-AMI selection is done with the `aws_ami` data source for the latest Amazon Linux 2 HVM image owned by Amazon.
+### Network Layer
+- **VPC** with DNS support and VPC Flow Logs
+- **Public subnet** for bastion host access
+- **Private subnet** for protected resources
+- **Internet Gateway** and **NAT Gateway** for secure egress
+- **Security Groups** with granular access rules
+
+### Security Layer
+- **EC2 Key Pair** for SSH authentication
+- **Security Groups** with least-privilege rules
+- **Network ACLs** for additional traffic filtering
+- **IAM Roles** with minimal required permissions
+- **Fail2ban** for SSH brute force protection
+
+### Compute Layer
+- **Bastion Host** with security hardening and monitoring
+- **Private Instance** with encryption and access controls
+- **Encrypted EBS volumes** with automatic encryption
+- **User data scripts** for OS hardening and security
+- **Detailed monitoring** for all instances
+
+### Monitoring Layer
+- **CloudTrail** for API call auditing
+- **CloudWatch alarms** for SSH login attempts
+- **SNS notifications** for security alerts
+- **VPC Flow Logs** for network traffic monitoring
+
+### Storage Layer
+- **Encrypted S3 buckets** for CloudTrail logs
+- **Versioning and lifecycle policies**
+- **Public access blocks** and TLS-only policies
+
+AMI selection uses the latest Amazon Linux 2 HVM image with security hardening applied through user data scripts.
 
 ### Remote state
 This configuration uses an S3 backend configured in `main.tf`:
@@ -104,12 +176,66 @@ Ensure the bucket exists and you have access, or update these values before `ter
 terraform destroy
 ```
 
-### Security notes
-- Restrict `allowed_ssh_cidrs` to your trusted IPs only
-- Rotate and protect your SSH keys; prefer short-lived access methods where possible
-- Consider enabling session logging/SSM Session Manager for stronger auditability
-- Monitor and tune the CloudWatch alarm thresholds and destinations
-- Apply least-privilege to the bastion IAM role; expand only as required
+## 🔒 Security Checklist
+
+### Pre-Deployment
+- [x] **Access Control**: Configure `allowed_ssh_cidrs` with specific IP ranges only
+- [x] **SSH Keys**: Generate and protect SSH key pairs securely
+- [x] **Network Security**: VPC Flow Logs enabled for network monitoring
+- [x] **Instance Security**: Fail2ban and SSH hardening configured
+- [x] **Monitoring**: CloudTrail and CloudWatch alarms configured
+- [x] **Encryption**: All EBS volumes encrypted at rest
+
+### Post-Deployment Verification
+- [ ] Verify bastion host is accessible from allowed IPs only
+- [ ] Confirm SSH key-based authentication is working
+- [ ] Test private instance access through bastion
+- [ ] Validate fail2ban is blocking unauthorized access attempts
+- [ ] Check CloudWatch alarms are triggering on SSH attempts
+- [ ] Verify VPC Flow Logs are capturing traffic
+
+## 🛡️ Security Features
+
+### Access Security
+- **Restricted SSH**: Access limited to specific IP ranges
+- **Key-Based Authentication**: Password authentication disabled
+- **Fail2ban Protection**: Automatic IP blocking for brute force attempts
+- **Root Login Disabled**: Direct root access prevented
+
+### Network Security
+- **Network Segmentation**: Public/private subnet isolation
+- **Security Groups**: Least-privilege access rules
+- **VPC Flow Logs**: Network traffic monitoring and analysis
+
+### Instance Security
+- **OS Hardening**: Security hardening scripts applied
+- **Encrypted Storage**: EBS volumes encrypted at rest
+- **Monitoring**: Detailed CloudWatch monitoring enabled
+
+### Monitoring & Alerting
+- **SSH Monitoring**: Login attempt tracking and alerting
+- **API Auditing**: CloudTrail logging for all AWS API calls
+- **Security Alerts**: SNS notifications for security events
+
+## ⚠️ Security Considerations
+
+### Production Deployment
+- **IP Restrictions**: Never use `0.0.0.0/0` for SSH access
+- **Key Management**: Regularly rotate SSH keys and revoke old ones
+- **Session Logging**: Consider enabling SSM Session Manager for auditability
+- **Multi-Factor**: Implement additional authentication layers where possible
+
+### Operational Security
+- **Access Reviews**: Regularly audit who has bastion access
+- **Log Monitoring**: Set up alerts for suspicious SSH activity
+- **Credential Rotation**: Rotate IAM credentials and SSH keys regularly
+- **Network Monitoring**: Monitor VPC Flow Logs for anomalies
+
+### Advanced Security
+- **Session Recording**: Enable SSH session recording for compliance
+- **Jump Host Rotation**: Consider rotating bastion hosts regularly
+- **Network ACLs**: Implement additional network-level restrictions
+- **Endpoint Protection**: Consider adding endpoint protection agents
 
 ### Costs
 Running EC2 instances, NAT/egress, and CloudWatch/SNS incur charges. Destroy resources when not needed.
