@@ -1,4 +1,4 @@
-resource "aws_security_group" "this" {
+resource "aws_security_group" "bastion" {
   name        = "bastion_security_group"
   description = "Security group for bastion host with restricted SSH access"
   vpc_id      = var.vpc_id
@@ -61,4 +61,32 @@ resource "aws_security_group" "this" {
   }
 }
 
-output "security_group_id" { value = aws_security_group.this.id }
+# Private instance SG (SSH only from bastion SG; no public ingress)
+resource "aws_security_group" "private" {
+  name        = "private_instance_security_group"
+  description = "Private instance SG; SSH only from bastion SG"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description     = "SSH from bastion SG"
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "private_instance_security_group"
+    Environment = var.environment
+  }
+}
+
+output "bastion_security_group_id" { value = aws_security_group.bastion.id }
+output "private_security_group_id" { value = aws_security_group.private.id }

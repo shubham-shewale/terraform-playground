@@ -50,7 +50,6 @@ terraform apply tfplan
 - `availability_zone` (string) – Default: `us-east-1a`
 - `environment` (string) – Default: `dev`
 - `allowed_http_cidrs` (list(string)) – Default: `["0.0.0.0/0"]` (restrict in production)
-- `allowed_ssh_cidrs` (list(string)) – Default: `["0.0.0.0/0"]` (restrict in production)
 
 ### Outputs
 - `public_instance_public_ip`
@@ -85,7 +84,6 @@ terraform destroy
 ```
 
 ### Security notes
-- Narrow `allowed_http_cidrs` and `allowed_ssh_cidrs`
 - Consider multi-AZ subnets and ALB/NLB for public ingress
 - Rotate credentials and monitor CloudWatch alarms/SNS destinations
 

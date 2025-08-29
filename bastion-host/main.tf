@@ -54,7 +54,7 @@ module "bastion" {
   source                = "./modules/bastion"
   subnet_id             = module.vpc.public_subnet_ids[0]
   key_name              = module.key_pair.key_name
-  security_group_id     = module.security_group.security_group_id
+  security_group_id     = module.security_group.bastion_security_group_id
   ami                   = data.aws_ami.amazon_linux.id
   environment           = var.environment
   iam_instance_profile  = aws_iam_instance_profile.bastion_profile.name
@@ -64,7 +64,7 @@ module "private_instance" {
   source            = "./modules/private_instance"
   subnet_id         = module.vpc.private_subnet_ids[0]
   key_name          = module.key_pair.key_name
-  security_group_id = module.security_group.security_group_id
+  security_group_id = module.security_group.private_security_group_id
   ami               = data.aws_ami.amazon_linux.id
   environment       = var.environment
 }

@@ -23,9 +23,3 @@ variable "allowed_http_cidrs" {
   type        = list(string)
   default     = ["0.0.0.0/0"] # Restrict this in production
 }
-
-variable "allowed_ssh_cidrs" {
-  description = "CIDR blocks allowed to access SSH (port 22)"
-  type        = list(string)
-  default     = ["0.0.0.0/0"] # Restrict this in production
-}
