@@ -37,3 +37,72 @@ rule "terraform_deprecated_index" {
 rule "terraform_standard_module_structure" {
   enabled = true
 }
+
+# Security-focused rules
+rule "aws_instance_invalid_type" {
+  enabled = true
+}
+
+rule "aws_security_group_rule_invalid_type" {
+  enabled = true
+}
+
+rule "aws_security_group_rule_invalid_protocol" {
+  enabled = true
+}
+
+# Enforce encryption at rest
+rule "aws_ebs_volume_encrypted" {
+  enabled = true
+}
+
+rule "aws_ebs_snapshot_encrypted" {
+  enabled = true
+}
+
+# Enforce secure defaults
+rule "aws_iam_policy_document_gov_friendly_arns" {
+  enabled = true
+}
+
+rule "aws_iam_role_policy_gov_friendly_arns" {
+  enabled = true
+}
+
+# Enforce proper tagging
+rule "aws_resource_missing_tags" {
+  enabled = true
+  tags = [
+    "Environment",
+    "Project",
+    "ManagedBy"
+  ]
+}
+
+# Enforce security group best practices
+rule "aws_security_group_rule_cidr_blocks" {
+  enabled = true
+}
+
+rule "aws_security_group_rule_description" {
+  enabled = true
+}
+
+# Enforce S3 bucket security
+rule "aws_s3_bucket_public_read" {
+  enabled = true
+}
+
+rule "aws_s3_bucket_public_write" {
+  enabled = true
+}
+
+# Enforce CloudTrail logging
+rule "aws_cloudtrail_insufficient_logging" {
+  enabled = true
+}
+
+# Enforce VPC Flow Logs
+rule "aws_vpc_flow_log_insufficient_logging" {
+  enabled = true
+}

@@ -6,7 +6,21 @@ resource "aws_instance" "this" {
   vpc_security_group_ids      = [var.security_group_id]
   associate_public_ip_address = false
 
-  tags = { Name = "private_instance" }
+  # Enable encryption at rest
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = 20
+    encrypted             = true
+    delete_on_termination = true
+  }
+
+  # Enable detailed monitoring
+  monitoring = true
+
+  tags = { 
+    Name = "private_instance"
+    Environment = var.environment
+  }
 }
 
 output "private_ip" { value = aws_instance.this.private_ip }

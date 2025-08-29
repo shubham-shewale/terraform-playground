@@ -33,3 +33,15 @@ variable "key_name" {
 variable "public_key" {
   description = "Path to your public key"
 }
+
+variable "allowed_ssh_cidrs" {
+  description = "CIDR blocks allowed to access SSH (port 22)"
+  type        = list(string)
+  default     = ["0.0.0.0/0"] # Restrict this in production
+}
+
+variable "environment" {
+  description = "Environment name for tagging"
+  type        = string
+  default     = "dev"
+}

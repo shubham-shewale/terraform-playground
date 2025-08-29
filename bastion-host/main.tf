@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "my-terraform-state-bucket-381492134996"
+    bucket = "my-terraform-state-bucket-211125380337"
     key    = "terraform-playground-bastion-host.tfstate"
     region = "us-east-1"
   }
@@ -37,8 +37,11 @@ module "vpc" {
 }
 
 module "security_group" {
-  source = "./modules/security_group"
-  vpc_id = module.vpc.vpc_id
+  source                = "./modules/security_group"
+  vpc_id                = module.vpc.vpc_id
+  allowed_ssh_cidrs     = var.allowed_ssh_cidrs
+  private_subnet_cidrs  = var.private_subnet_cidrs
+  environment           = var.environment
 }
 
 module "key_pair" {
@@ -48,11 +51,13 @@ module "key_pair" {
 }
 
 module "bastion" {
-  source            = "./modules/bastion"
-  subnet_id         = module.vpc.public_subnet_ids[0]
-  key_name          = module.key_pair.key_name
-  security_group_id = module.security_group.security_group_id
-  ami               = data.aws_ami.amazon_linux.id
+  source                = "./modules/bastion"
+  subnet_id             = module.vpc.public_subnet_ids[0]
+  key_name              = module.key_pair.key_name
+  security_group_id     = module.security_group.security_group_id
+  ami                   = data.aws_ami.amazon_linux.id
+  environment           = var.environment
+  iam_instance_profile  = aws_iam_instance_profile.bastion_profile.name
 }
 
 module "private_instance" {
@@ -61,4 +66,5 @@ module "private_instance" {
   key_name          = module.key_pair.key_name
   security_group_id = module.security_group.security_group_id
   ami               = data.aws_ami.amazon_linux.id
+  environment       = var.environment
 }
