@@ -124,41 +124,51 @@ Default unrestricted access (`0.0.0.0/0`) has been removed for security. Only ex
 - `bastion_public_ip` – Public IPv4 of the bastion host
 - `private_instance_ip` – Private IPv4 of the private instance
 
-## 🏛️ Architecture Components
+## 🏗️ Enhanced Architecture Components
 
 ### Network Layer
-- **VPC** with DNS support and VPC Flow Logs
-- **Public subnet** for bastion host access
-- **Private subnet** for protected resources
+- **VPC** with DNS support and comprehensive VPC Flow Logs
+- **Public subnet** for bastion host access with Network ACLs
+- **Private subnet** for protected resources with Network ACLs
 - **Internet Gateway** and **NAT Gateway** for secure egress
-- **Security Groups** with granular access rules
+- **Security Groups** with granular access rules and descriptions
+- **VPC Endpoints** for SSM, EC2Messages, and SSM Messages
 
 ### Security Layer
 - **EC2 Key Pair** for SSH authentication
-- **Security Groups** with least-privilege rules
-- **Network ACLs** for additional traffic filtering
-- **IAM Roles** with minimal required permissions
+- **Security Groups** with least-privilege rules and validation
+- **Network ACLs** for defense-in-depth traffic filtering
+- **IAM Roles** with minimal required permissions for SSM
 - **Fail2ban** for SSH brute force protection
+- **SSM Session Manager** for secure remote access
 
 ### Compute Layer
-- **Bastion Host** with security hardening and monitoring
+- **Bastion Host** with comprehensive security hardening
 - **Private Instance** with encryption and access controls
 - **Encrypted EBS volumes** with automatic encryption
-- **User data scripts** for OS hardening and security
+- **User data scripts** for OS hardening and security configuration
 - **Detailed monitoring** for all instances
+- **SSM Agent** for Session Manager functionality
 
 ### Monitoring Layer
-- **CloudTrail** for API call auditing
-- **CloudWatch alarms** for SSH login attempts
+- **CloudTrail** for comprehensive API call auditing
+- **CloudWatch alarms** for SSH login attempts and security events
 - **SNS notifications** for security alerts
-- **VPC Flow Logs** for network traffic monitoring
+- **VPC Flow Logs** for network traffic monitoring and analysis
+- **Multi-region CloudTrail** for global audit coverage
 
 ### Storage Layer
-- **Encrypted S3 buckets** for CloudTrail logs
-- **Versioning and lifecycle policies**
+- **Encrypted S3 buckets** for CloudTrail logs with versioning
+- **Lifecycle policies** for log retention management
 - **Public access blocks** and TLS-only policies
+- **Server-side encryption** for all stored data
 
-AMI selection uses the latest Amazon Linux 2 HVM image with security hardening applied through user data scripts.
+### Access Methods
+- **SSH with Key Authentication**: Primary access method with fail2ban protection
+- **SSM Session Manager**: Secure alternative without SSH keys
+- **IAM-based Authentication**: Role-based access control for all operations
+
+AMI selection uses the latest Amazon Linux 2 HVM image with comprehensive security hardening applied through user data scripts, including SSH configuration, fail2ban setup, and SSM agent configuration.
 
 ### Remote state
 This configuration uses an S3 backend configured in `main.tf`:

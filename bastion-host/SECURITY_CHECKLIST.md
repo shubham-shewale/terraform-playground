@@ -6,9 +6,11 @@
 - [x] VPC CIDR ranges are appropriate and non-overlapping
 - [x] Public and private subnets are properly isolated
 - [x] Security groups restrict SSH access to specific IP ranges
-- [x] Network ACLs provide additional traffic filtering
-- [x] VPC Flow Logs are enabled for network monitoring
+- [x] Network ACLs provide defense-in-depth traffic filtering
+- [x] VPC Flow Logs are enabled for comprehensive network monitoring
 - [x] NAT Gateway allows private subnet secure egress
+- [x] VPC endpoints enable secure SSM communication
+- [x] Security groups for VPC endpoints restrict access appropriately
 
 ### Access Control
 - [x] SSH access is restricted to specific IP ranges only
@@ -17,6 +19,9 @@
 - [x] IAM roles follow principle of least privilege
 - [x] SSH keys are properly generated and protected
 - [x] Fail2ban is configured for brute force protection
+- [x] SSM Session Manager provides secure alternative access
+- [x] IAM policies restrict SSM session capabilities
+- [x] Session recording and auditing capabilities enabled
 
 ### Instance Security
 - [x] EC2 instances use encrypted EBS volumes
