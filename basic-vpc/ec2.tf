@@ -10,15 +10,6 @@ resource "aws_security_group" "public_sg" {
     protocol    = "tcp"
     cidr_blocks = var.allowed_http_cidrs # Restrict to specific IPs
   }
-
-  # Allow SSH access only from specific IPs
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = var.allowed_ssh_cidrs
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -42,15 +33,6 @@ resource "aws_security_group" "private_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.public_sg.id] # Allow from public instance
   }
-
-  # Allow SSH access only from bastion or specific IPs
-  ingress {
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    security_groups = [aws_security_group.public_sg.id]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -147,6 +129,7 @@ resource "aws_instance" "public" {
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.public_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
 
   # Enable encryption at rest
   root_block_device {
