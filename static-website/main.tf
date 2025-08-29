@@ -33,9 +33,9 @@ module "waf" {
   name       = "static-website-waf"
   rate_limit = var.rate_limit
   tags       = local.tags
-   providers = {
-     aws = aws.us_east_1
-   }
+  providers = {
+    aws = aws.us_east_1
+  }
 }
 
 module "cloudfront_logs" {
@@ -79,19 +79,19 @@ resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
   name        = "waf-logs-stream"
   destination = "extended_s3"
   extended_s3_configuration {
-    role_arn   = aws_iam_role.firehose_role.arn
-    bucket_arn = module.waf_logs.bucket_arn
+    role_arn           = aws_iam_role.firehose_role.arn
+    bucket_arn         = module.waf_logs.bucket_arn
     buffering_size     = 128
     buffering_interval = 300
     compression_format = "GZIP"
     prefix             = "year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/"
   }
-  
+
   tags = local.tags
 }
 
 resource "aws_wafv2_web_acl_logging_configuration" "main" {
-  provider               = aws.us_east_1
+  provider                = aws.us_east_1
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.waf_logs.arn]
   resource_arn            = module.waf.arn
   redacted_fields {
@@ -115,7 +115,7 @@ module "cloudfront" {
   price_class                   = var.price_class
   log_bucket_domain             = module.cloudfront_logs.bucket_domain_name
   tags                          = local.tags
-  origin_shield_region        = var.us_east_1_region
+  origin_shield_region          = var.us_east_1_region
   providers = {
     aws           = aws
     aws.us_east_1 = aws.us_east_1
@@ -137,7 +137,7 @@ data "aws_iam_policy_document" "s3_policy" {
     }
   }
 
-   # Deny non-TLS while excluding AWS service principals
+  # Deny non-TLS while excluding AWS service principals
   statement {
     sid     = "DenyInsecureTransport"
     effect  = "Deny"

@@ -82,14 +82,14 @@ resource "aws_iam_role_policy" "vpc_flow_log_policy" {
 # CloudTrail for API call logging
 resource "aws_cloudtrail" "main" {
   name                          = "basic-vpc-cloudtrail"
-  s3_bucket_name               = aws_s3_bucket.cloudtrail_bucket.id
+  s3_bucket_name                = aws_s3_bucket.cloudtrail_bucket.id
   include_global_service_events = true
-  is_multi_region_trail        = true
-  enable_logging               = true
+  is_multi_region_trail         = true
+  enable_logging                = true
 
   event_selector {
-    read_write_type                 = "All"
-    include_management_events       = true
+    read_write_type           = "All"
+    include_management_events = true
     data_resource {
       type   = "AWS::S3::Object"
       values = ["${aws_s3_bucket.cloudtrail_bucket.arn}/*"]

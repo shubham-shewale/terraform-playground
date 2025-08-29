@@ -37,7 +37,7 @@ variable "public_key" {
 variable "allowed_ssh_cidrs" {
   description = "CIDR blocks allowed to access SSH (port 22)"
   type        = list(string)
-  default     = ["0.0.0.0/0"] # Restrict this in production
+  default     = [] # No default - must be explicitly set for security
 }
 
 variable "environment" {

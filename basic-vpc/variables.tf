@@ -18,8 +18,20 @@ variable "environment" {
   default = "dev"
 }
 
+variable "region" {
+  description = "AWS region for resources"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "allowed_http_cidrs" {
   description = "CIDR blocks allowed to access HTTP (port 80)"
   type        = list(string)
-  default     = ["0.0.0.0/0"] # Restrict this in production
+  default     = [] # No default - must be explicitly set for security
+}
+
+variable "allowed_ssh_cidrs" {
+  description = "CIDR blocks allowed to access SSH (port 22)"
+  type        = list(string)
+  default     = [] # No default - must be explicitly set for security
 }

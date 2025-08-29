@@ -2,7 +2,74 @@ resource "aws_vpc" "this" {
   cidr_block           = var.cidr_block
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags                 = { Name = "default_vpc" }
+  tags                 = { Name = "bastion_vpc" }
+}
+
+# VPC Flow Logs for network monitoring
+resource "aws_flow_log" "vpc_flow_log" {
+  iam_role_arn    = aws_iam_role.vpc_flow_log_role.arn
+  log_destination = aws_cloudwatch_log_group.vpc_flow_log.arn
+  traffic_type    = "ALL"
+  vpc_id          = aws_vpc.this.id
+
+  tags = {
+    Name = "vpc-flow-log"
+  }
+}
+
+# CloudWatch Log Group for VPC Flow Logs
+resource "aws_cloudwatch_log_group" "vpc_flow_log" {
+  name              = "/aws/vpc/flowlogs/bastion"
+  retention_in_days = 30
+
+  tags = {
+    Name = "vpc-flow-logs"
+  }
+}
+
+# IAM Role for VPC Flow Logs
+resource "aws_iam_role" "vpc_flow_log_role" {
+  name = "vpc-flow-log-role-bastion"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "vpc-flow-log-role"
+  }
+}
+
+# IAM Policy for VPC Flow Logs
+resource "aws_iam_role_policy" "vpc_flow_log_policy" {
+  name = "vpc-flow-log-policy"
+  role = aws_iam_role.vpc_flow_log_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 resource "aws_internet_gateway" "igw" {

@@ -54,7 +54,7 @@ resource "aws_security_group" "vpc_endpoint_sg" {
 # VPC Endpoint for SSM
 resource "aws_vpc_endpoint" "ssm" {
   vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.us-east-1.ssm"
+  service_name        = "com.amazonaws.${var.region}.ssm"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = [aws_subnet.private.id]
   security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
@@ -69,7 +69,7 @@ resource "aws_vpc_endpoint" "ssm" {
 # VPC Endpoint for EC2 Messages
 resource "aws_vpc_endpoint" "ec2messages" {
   vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.us-east-1.ec2messages"
+  service_name        = "com.amazonaws.${var.region}.ec2messages"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = [aws_subnet.private.id]
   security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
@@ -84,7 +84,7 @@ resource "aws_vpc_endpoint" "ec2messages" {
 # VPC Endpoint for SSM Messages
 resource "aws_vpc_endpoint" "ssmmessages" {
   vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.us-east-1.ssmmessages"
+  service_name        = "com.amazonaws.${var.region}.ssmmessages"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = [aws_subnet.private.id]
   security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]

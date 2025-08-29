@@ -2,15 +2,20 @@
 
 # Security Group for Public EC2 (restrict access to specific IPs)
 resource "aws_security_group" "public_sg" {
-  vpc_id = aws_vpc.main.id
+  name        = "public-ec2-sg-${var.environment}"
+  description = "Security group for public EC2 instance with restricted HTTP access"
+  vpc_id      = aws_vpc.main.id
 
   ingress {
+    description = "HTTP access from allowed CIDR blocks"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = var.allowed_http_cidrs # Restrict to specific IPs
+    cidr_blocks = length(var.allowed_http_cidrs) > 0 ? var.allowed_http_cidrs : ["127.0.0.1/32"] # Default deny if not specified
   }
+
   egress {
+    description = "Allow all outbound traffic"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -25,15 +30,20 @@ resource "aws_security_group" "public_sg" {
 
 # Security Group for Private EC2 (allow inbound HTTP from public SG, outbound all, including 443 for SSM)
 resource "aws_security_group" "private_sg" {
-  vpc_id = aws_vpc.main.id
+  name        = "private-ec2-sg-${var.environment}"
+  description = "Security group for private EC2 instance with restricted access"
+  vpc_id      = aws_vpc.main.id
 
   ingress {
+    description     = "HTTP access from public security group"
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
     security_groups = [aws_security_group.public_sg.id] # Allow from public instance
   }
+
   egress {
+    description = "Allow all outbound traffic for updates and SSM"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"

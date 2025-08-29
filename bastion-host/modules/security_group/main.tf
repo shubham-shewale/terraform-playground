@@ -8,7 +8,7 @@ resource "aws_security_group" "bastion" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = var.allowed_ssh_cidrs # Restrict to specific IPs
+    cidr_blocks = length(var.allowed_ssh_cidrs) > 0 ? var.allowed_ssh_cidrs : ["127.0.0.1/32"] # Default deny if not specified
   }
 
   # Allow outbound traffic to private subnets only
