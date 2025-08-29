@@ -2,10 +2,10 @@
 
 This Terraform configuration provisions a secure static website stack:
 - Private S3 bucket with website configuration (access only via CloudFront OAC)
-- CloudFront distribution with HTTPS (ACM), security response headers, and logging
+- CloudFront distribution with HTTPS (ACM), security response headers, compression, Origin Shield, and logging
 - AWS WAFv2 Web ACL with managed rules, rate limiting, and logging to S3 via Firehose
 - Route 53 alias record to your CloudFront distribution
-- `index.html` and `error.html` uploaded to the S3 bucket
+- `index.html` and `error.html` uploaded to the S3 bucket (with strict CSP)
 
 > Note: Remote state is configured in `backend.tf` to an S3 bucket. Ensure it exists or adjust before running.
 
@@ -42,7 +42,7 @@ terraform apply tfplan
 - Once Route 53 alias is live, access at `https://<domain_name>`.
 
 ### Inputs
-- `domain_name` (string) – Domain for the website (must be in Route 53). Default: `211125418662.realhandsonlabs.net`
+- `domain_name` (string) – Domain for the website (must be in Route 53). No default; set via tfvars or environment.
 
 ### Outputs
 - `cloudfront_domain` – CloudFront distribution domain
@@ -50,12 +50,14 @@ terraform apply tfplan
 
 ### Security controls
 - S3 bucket is private with ownership controls, versioning, SSE-S3, and public access block
-- CloudFront enforces HTTPS, injects strict security headers, and logs to S3
+- CloudFront enforces HTTPS, injects strict security headers, enables compression and Origin Shield, and logs to S3
 - WAFv2 Web ACL with:
   - AWS managed rule groups (Common, SQLi, KnownBadInputs)
+  - Additional groups: BotControl, AnonymousIpList
   - Rate limiting rule
   - Logging to S3 via Firehose
 - OAC-based S3 access; bucket policy allows only the CloudFront distribution
+- S3 log buckets enforce TLS-only access and encrypted object writes
 
 ### Architecture and flow
 1. Users resolve `var.domain_name` → Route 53 alias to CloudFront

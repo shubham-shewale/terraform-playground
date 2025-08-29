@@ -1,7 +1,2 @@
-output "cloudfront_domain" {
-  value = aws_cloudfront_distribution.main.domain_name
-}
-
-output "s3_bucket_name" {
-  value = aws_s3_bucket.website.bucket
-}
+output "cloudfront_domain" { value = module.cloudfront.distribution_domain_name }
+output "s3_bucket_name" { value = module.website_bucket.bucket }
