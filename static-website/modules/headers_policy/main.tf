@@ -18,11 +18,6 @@ resource "aws_cloudfront_response_headers_policy" "this" {
       referrer_policy = "strict-origin-when-cross-origin"
       override        = true
     }
-    xss_protection {
-      mode_block = true
-      protection = true
-      override   = true
-    }
     strict_transport_security {
       access_control_max_age_sec = 31536000
       include_subdomains         = true

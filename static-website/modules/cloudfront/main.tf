@@ -5,7 +5,18 @@ variable "waf_web_acl_arn" { type = string }
 variable "price_class" { type = string }
 variable "log_bucket_domain" { type = string }
 variable "tags" { type = map(string) }
+variable "origin_shield_region" { 
+  type = string 
+  default = "us-east-1" 
+}
 
+# Managed policies (resolved at apply time)
+data "aws_cloudfront_cache_policy" "managed_caching_optimized" {
+  name = "Managed-CachingOptimized"
+}
+data "aws_cloudfront_origin_request_policy" "managed_cors_s3_origin" {
+  name = "Managed-CORS-S3Origin"
+}
 resource "aws_cloudfront_origin_access_control" "oac" {
   name                              = "${var.domain_name}-oac"
   description                       = "OAC for static website"
@@ -21,7 +32,7 @@ resource "aws_cloudfront_distribution" "this" {
     origin_id                = "s3-origin"
     origin_shield {
       enabled              = true
-      origin_shield_region = "us-east-1"
+      origin_shield_region = var.origin_shield_region
     }
   }
 
@@ -37,12 +48,8 @@ resource "aws_cloudfront_distribution" "this" {
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "s3-origin"
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
+    cache_policy_id           = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
+    origin_request_policy_id  = data.aws_cloudfront_origin_request_policy.managed_cors_s3_origin.id
     viewer_protocol_policy = "redirect-to-https"
     min_ttl  = 0
     default_ttl = 3600
@@ -50,6 +57,9 @@ resource "aws_cloudfront_distribution" "this" {
     compress = true
     response_headers_policy_id = var.response_headers_policy_id
   }
+
+  # Enable HTTP/3 with fallback to HTTP/2/1.1
+  http_version = "http2and3"
 
   custom_error_response {
     error_code         = 403
@@ -87,6 +97,7 @@ variable "certificate_domain_name" { type = string }
 
 data "aws_route53_zone" "this" {
   name = var.certificate_domain_name
+  private_zone = false
 }
 
 resource "aws_acm_certificate" "cert" {
