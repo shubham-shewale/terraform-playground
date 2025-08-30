@@ -100,6 +100,20 @@ if grep -r "your-api-gateway-url" website/ 2>/dev/null; then
     echo "⚠️  Found placeholder API URL in website files"
 fi
 
+# Run test suite if available
+if [ -d "tests" ] && [ -f "tests/Makefile" ]; then
+    echo "Running test suite..."
+    cd tests
+    if make smoke-test; then
+        echo "✅ Smoke tests passed"
+    else
+        echo "⚠️  Some smoke tests failed - check test configuration"
+    fi
+    cd ..
+else
+    echo "ℹ️  Test suite not found - run tests manually after setup"
+fi
+
 echo ""
 echo "Validation completed!"
 echo ""
@@ -108,3 +122,12 @@ echo "1. Update backend.tf with your S3 bucket for Terraform state"
 echo "2. Run './build.sh' to create Lambda ZIP files"
 echo "3. Run 'terraform plan' to review the deployment"
 echo "4. Run 'terraform apply' to deploy the infrastructure"
+echo "5. Run tests: cd tests && make test"
+echo ""
+echo "Test Suite Available:"
+echo "- Unit tests: pytest tests/unit/"
+echo "- Integration tests: go test ./tests/integration/"
+echo "- E2E tests: go test ./tests/e2e/"
+echo "- Compliance tests: go test ./tests/compliance/"
+echo "- Performance tests: ./tests/scripts/performance_test.sh"
+echo "5. Run 'make test' in tests/ directory to execute full test suite"
