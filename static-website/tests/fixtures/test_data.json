@@ -1,0 +1,14 @@
+{
+  "test_domain": "test.example.com",
+  "test_rate_limit": 2000,
+  "test_price_class": "PriceClass_100",
+  "expected_security_headers": [
+    "X-Frame-Options",
+    "X-Content-Type-Options",
+    "X-XSS-Protection",
+    "Strict-Transport-Security",
+    "Content-Security-Policy"
+  ],
+  "waf_rule_count": 6,
+  "log_retention_days": 365
+}

@@ -1,0 +1,463 @@
+name: Bastion Host CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+        - test
+        - staging
+        - production
+
+env:
+  TF_VERSION: '1.5.0'
+  TG_VERSION: '0.46.11'
+  GO_VERSION: '1.21'
+
+jobs:
+  # Pre-deployment validation
+  validate:
+    name: 'Terraform Validation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+
+    - name: Terraform Validate
+      run: |
+        terraform init -backend=false
+        terraform validate
+
+    - name: Check for required files
+      run: |
+        test -f main.tf || (echo "main.tf not found" && exit 1)
+        test -f variables.tf || (echo "variables.tf not found" && exit 1)
+        test -f outputs.tf || (echo "outputs.tf not found" && exit 1)
+
+  # Security scanning
+  security-scan:
+    name: 'Security & Compliance Scan'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: TFLint
+      uses: reviewdog/action-tflint@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        reporter: github-pr-review
+        tflint_config: .tflint.hcl
+
+    - name: TFSec Security Scan
+      uses: aquasecurity/tfsec-action@v1.0.0
+      with:
+        working_directory: .
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Checkov Security Scan
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        directory: .
+        framework: terraform
+        output_format: cli
+        output_file_path: checkov-results.json
+
+  # Fast unit tests
+  unit-tests:
+    name: 'Unit Tests'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('tests/go.mod') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      working-directory: tests
+      run: go mod download
+
+    - name: Run unit tests
+      working-directory: tests
+      run: go test -v ./unit/... -timeout 15m -coverprofile=coverage-unit.out
+
+    - name: Upload unit test coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: tests/coverage-unit.out
+        flags: unit-tests
+        name: unit-tests-coverage
+
+  # Integration tests (only on main branch)
+  integration-tests:
+    name: 'Integration Tests'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('tests/go.mod') }}
+
+    - name: Install dependencies
+      working-directory: tests
+      run: go mod download
+
+    - name: Run integration tests
+      working-directory: tests
+      run: go test -v ./integration/... -timeout 40m
+
+  # Security tests
+  security-tests:
+    name: 'Security Tests'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('tests/go.mod') }}
+
+    - name: Install dependencies
+      working-directory: tests
+      run: go mod download
+
+    - name: Run security tests
+      working-directory: tests
+      run: go test -v ./security/... -timeout 20m
+
+  # Performance tests
+  performance-tests:
+    name: 'Performance Tests'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('tests/go.mod') }}
+
+    - name: Install dependencies
+      working-directory: tests
+      run: go mod download
+
+    - name: Run performance tests
+      working-directory: tests
+      run: go test -v ./performance/... -timeout 25m
+
+  # Chaos engineering tests
+  chaos-tests:
+    name: 'Chaos Engineering Tests'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    if: github.ref == 'refs/heads/main' && github.event_name == 'schedule'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('tests/go.mod') }}
+
+    - name: Install dependencies
+      working-directory: tests
+      run: go mod download
+
+    - name: Run chaos tests
+      working-directory: tests
+      run: go test -v ./chaos/... -timeout 30m
+
+  # Cost optimization tests
+  cost-tests:
+    name: 'Cost Optimization Tests'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('tests/go.mod') }}
+
+    - name: Install dependencies
+      working-directory: tests
+      run: go mod download
+
+    - name: Run cost optimization tests
+      working-directory: tests
+      run: go test -v ./cost/... -timeout 20m
+
+  # Deployment to staging
+  deploy-staging:
+    name: 'Deploy to Staging'
+    runs-on: ubuntu-latest
+    needs: [validate, security-scan, unit-tests, security-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    environment: staging
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Terraform Plan (Staging)
+      run: |
+        terraform init
+        terraform workspace select staging || terraform workspace new staging
+        terraform plan -var-file=staging.tfvars -out=tfplan-staging
+
+    - name: Terraform Apply (Staging)
+      run: terraform apply tfplan-staging
+
+    - name: Run post-deployment tests
+      run: |
+        # Add post-deployment validation here
+        echo "Staging deployment completed successfully"
+
+  # Deployment to production (manual approval required)
+  deploy-production:
+    name: 'Deploy to Production'
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, integration-tests, performance-tests, cost-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+        aws-region: us-east-1
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Terraform Plan (Production)
+      run: |
+        terraform init
+        terraform workspace select production || terraform workspace new production
+        terraform plan -var-file=production.tfvars -out=tfplan-production
+
+    - name: Manual Approval
+      uses: trstringer/manual-approval@v1
+      with:
+        secret: ${{ secrets.MANUAL_APPROVAL_TOKEN }}
+        approvers: infrastructure-team,security-team
+        minimum-approvals: 2
+        issue-title: "Deploy Bastion Host to Production"
+        issue-body: "Please review and approve the production deployment of Bastion Host infrastructure."
+
+    - name: Terraform Apply (Production)
+      run: terraform apply tfplan-production
+
+    - name: Run production validation
+      run: |
+        # Add production-specific validation here
+        echo "Production deployment completed successfully"
+
+  # Generate test reports
+  test-reports:
+    name: 'Generate Test Reports'
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, security-tests, performance-tests, cost-tests]
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Generate test summary
+      run: |
+        echo "# Test Execution Summary" > test-summary.md
+        echo "" >> test-summary.md
+        echo "| Test Type | Status | Duration |" >> test-summary.md
+        echo "|-----------|--------|----------|" >> test-summary.md
+
+        # Add test results here based on job outcomes
+        echo "| Unit Tests | ${{ needs.unit-tests.result }} | ~15m |" >> test-summary.md
+        echo "| Integration Tests | ${{ needs.integration-tests.result }} | ~40m |" >> test-summary.md
+        echo "| Security Tests | ${{ needs.security-tests.result }} | ~20m |" >> test-summary.md
+        echo "| Performance Tests | ${{ needs.performance-tests.result }} | ~25m |" >> test-summary.md
+        echo "| Cost Tests | ${{ needs.cost-tests.result }} | ~20m |" >> test-summary.md
+
+        cat test-summary.md
+
+    - name: Upload test summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-summary
+        path: test-summary.md
+
+  # Cleanup resources (for non-production deployments)
+  cleanup:
+    name: 'Cleanup Test Resources'
+    runs-on: ubuntu-latest
+    needs: [test-reports]
+    if: always() && github.event_name != 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Cleanup test resources
+      run: |
+        # Add cleanup logic for test resources
+        echo "Cleaning up test resources..."
+        # This would destroy test-specific resources created during testing
