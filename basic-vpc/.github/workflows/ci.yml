@@ -1,0 +1,289 @@
+name: Basic VPC CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'terraform-playground/basic-vpc/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'terraform-playground/basic-vpc/**'
+  workflow_dispatch:
+
+env:
+  TF_VERSION: '1.5.0'
+  TG_VERSION: '0.55.1'
+  WORKING_DIR: ./terraform-playground/basic-vpc
+
+jobs:
+  validate:
+    name: 'Terraform Validate'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format
+        id: fmt
+        run: |
+          cd ${{ env.WORKING_DIR }}
+          terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Validate
+        id: validate
+        run: |
+          cd ${{ env.WORKING_DIR }}
+          terraform init -backend=false
+          terraform validate -no-color
+
+      - name: Update Pull Request
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        env:
+          FORMAT: "${{ steps.fmt.outcome }}"
+          VALIDATE: "${{ steps.validate.outcome }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Validate 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.validate.outcome }}\`
+
+            * Terraform Format: \`${{ steps.fmt.outcome }}\`
+            * Terraform Validate: \`${{ steps.validate.outcome }}\`
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  security-scan:
+    name: 'Security Scan'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Run TFLint
+        uses: reviewdog/action-tflint@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          working_directory: ${{ env.WORKING_DIR }}
+          reporter: github-pr-review
+          fail_on_error: true
+          tflint_config: .tflint.hcl
+
+      - name: Run TFSec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: ${{ env.WORKING_DIR }}
+          soft_fail: true
+
+  unit-tests:
+    name: 'Unit Tests'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run Unit Tests
+        run: |
+          cd ${{ env.WORKING_DIR }}/tests
+          go mod download
+          go test -v ./unit/... -timeout 30m
+
+  integration-tests:
+    name: 'Integration Tests'
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run Integration Tests
+        run: |
+          cd ${{ env.WORKING_DIR }}/tests
+          go test -v ./integration/... -timeout 45m
+
+  compliance-tests:
+    name: 'Compliance Tests'
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Install InSpec
+        run: gem install inspec
+
+      - name: Run Compliance Tests
+        run: |
+          cd ${{ env.WORKING_DIR }}/tests/compliance
+          inspec exec . --reporter cli json:test-results.json
+
+      - name: Upload Compliance Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: compliance-results
+          path: ${{ env.WORKING_DIR }}/tests/compliance/test-results.json
+
+  e2e-tests:
+    name: 'End-to-End Tests'
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Run E2E Tests
+        run: |
+          cd ${{ env.WORKING_DIR }}/tests/e2e
+          chmod +x connectivity_test.sh
+          ./connectivity_test.sh
+
+  deploy:
+    name: 'Deploy to Staging'
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [validate, security-scan, unit-tests]
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to Staging
+        run: |
+          cd ${{ env.WORKING_DIR }}
+          terraform init
+          terraform workspace select staging || terraform workspace new staging
+          terraform plan -out=tfplan
+          terraform apply tfplan
+
+  notification:
+    name: 'Notification'
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [validate, security-scan, unit-tests, integration-tests, compliance-tests, e2e-tests, deploy]
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Basic VPC CI/CD Pipeline Results
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Actor: ${{ github.actor }}
+
+            Jobs Status:
+            • Validate: ${{ needs.validate.result }}
+            • Security Scan: ${{ needs.security-scan.result }}
+            • Unit Tests: ${{ needs.unit-tests.result }}
+            • Integration Tests: ${{ needs.integration-tests.result }}
+            • Compliance Tests: ${{ needs.compliance-tests.result }}
+            • E2E Tests: ${{ needs.e2e-tests.result }}
+            • Deploy: ${{ needs.deploy.result }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != null

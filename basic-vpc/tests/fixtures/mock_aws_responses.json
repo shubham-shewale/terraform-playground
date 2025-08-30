@@ -1,0 +1,164 @@
+{
+  "vpc": {
+    "VpcId": "vpc-12345678",
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsSupport": true,
+    "EnableDnsHostnames": true,
+    "State": "available",
+    "Tags": [
+      {
+        "Key": "Name",
+        "Value": "basic-vpc"
+      },
+      {
+        "Key": "Environment",
+        "Value": "test"
+      }
+    ]
+  },
+  "subnets": {
+    "public": {
+      "SubnetId": "subnet-12345678",
+      "VpcId": "vpc-12345678",
+      "CidrBlock": "10.0.1.0/24",
+      "AvailabilityZone": "us-east-1a",
+      "MapPublicIpOnLaunch": true,
+      "State": "available"
+    },
+    "private": {
+      "SubnetId": "subnet-87654321",
+      "VpcId": "vpc-12345678",
+      "CidrBlock": "10.0.2.0/24",
+      "AvailabilityZone": "us-east-1a",
+      "MapPublicIpOnLaunch": false,
+      "State": "available"
+    }
+  },
+  "instances": {
+    "public": {
+      "InstanceId": "i-1234567890abcdef0",
+      "InstanceType": "t3.micro",
+      "State": {
+        "Name": "running"
+      },
+      "PublicIpAddress": "203.0.113.10",
+      "PrivateIpAddress": "10.0.1.10",
+      "VpcId": "vpc-12345678",
+      "SubnetId": "subnet-12345678",
+      "Monitoring": {
+        "State": "enabled"
+      },
+      "EbsOptimized": true,
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "public-ec2"
+        }
+      ]
+    },
+    "private": {
+      "InstanceId": "i-0987654321fedcba0",
+      "InstanceType": "t3.micro",
+      "State": {
+        "Name": "running"
+      },
+      "PrivateIpAddress": "10.0.2.10",
+      "VpcId": "vpc-12345678",
+      "SubnetId": "subnet-87654321",
+      "Monitoring": {
+        "State": "enabled"
+      },
+      "EbsOptimized": true,
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "private-ec2"
+        }
+      ]
+    }
+  },
+  "security_groups": {
+    "public": {
+      "GroupId": "sg-12345678",
+      "GroupName": "public-ec2-sg-test",
+      "VpcId": "vpc-12345678",
+      "IpPermissions": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 80,
+          "ToPort": 80,
+          "IpRanges": [
+            {
+              "CidrIp": "203.0.113.0/24"
+            }
+          ]
+        }
+      ],
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "-1",
+          "IpRanges": [
+            {
+              "CidrIp": "0.0.0.0/0"
+            }
+          ]
+        }
+      ]
+    },
+    "private": {
+      "GroupId": "sg-87654321",
+      "GroupName": "private-ec2-sg-test",
+      "VpcId": "vpc-12345678",
+      "IpPermissions": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 80,
+          "ToPort": 80,
+          "UserIdGroupPairs": [
+            {
+              "GroupId": "sg-12345678"
+            }
+          ]
+        }
+      ],
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "-1",
+          "IpRanges": [
+            {
+              "CidrIp": "0.0.0.0/0"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cloudtrail": {
+    "TrailARN": "arn:aws:cloudtrail:us-east-1:123456789012:trail/basic-vpc-cloudtrail",
+    "Name": "basic-vpc-cloudtrail",
+    "S3BucketName": "basic-vpc-cloudtrail-logs-123456789",
+    "IsMultiRegionTrail": true,
+    "IsLogging": true,
+    "IncludeGlobalServiceEvents": true
+  },
+  "cloudwatch_alarms": [
+    {
+      "AlarmName": "cpu-utilization-public-test",
+      "MetricName": "CPUUtilization",
+      "Namespace": "AWS/EC2",
+      "Statistic": "Average",
+      "ComparisonOperator": "GreaterThanThreshold",
+      "Threshold": 80,
+      "EvaluationPeriods": 2
+    },
+    {
+      "AlarmName": "cpu-utilization-private-test",
+      "MetricName": "CPUUtilization",
+      "Namespace": "AWS/EC2",
+      "Statistic": "Average",
+      "ComparisonOperator": "GreaterThanThreshold",
+      "Threshold": 80,
+      "EvaluationPeriods": 2
+    }
+  ]
+}
