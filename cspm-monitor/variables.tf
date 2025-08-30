@@ -185,4 +185,24 @@ variable "enable_critical_escalation" {
   }
 }
 
-# Removed duplicate variable - keeping the one defined earlier
+variable "terraform_state_bucket" {
+  description = "S3 bucket for Terraform state storage"
+  type        = string
+  default     = "your-terraform-state-bucket"
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", var.terraform_state_bucket))
+    error_message = "S3 bucket name must be valid (lowercase, no uppercase, no special chars except hyphens)."
+  }
+}
+
+variable "terraform_locks_table" {
+  description = "DynamoDB table for Terraform state locking"
+  type        = string
+  default     = "your-terraform-locks-table"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._-]+$", var.terraform_locks_table))
+    error_message = "DynamoDB table name must be valid."
+  }
+}

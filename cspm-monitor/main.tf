@@ -121,6 +121,28 @@ resource "aws_dynamodb_table" "findings" {
     }
   }
 
+  # Resource policy for enhanced security
+  resource_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "DenyInsecureTransport"
+        Effect = "Deny"
+        Principal = "*"
+        Action   = "dynamodb:*"
+        Resource = [
+          aws_dynamodb_table.findings.arn,
+          "${aws_dynamodb_table.findings.arn}/index/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      }
+    ]
+  })
+
   tags = merge(local.tags, {
     Name            = "${var.project_name}-findings-table"
     DataClass       = "Sensitive"
@@ -506,7 +528,7 @@ resource "aws_lambda_function" "archiver" {
 
   # VPC configuration for enhanced security
   vpc_config {
-    subnet_ids         = aws_subnet.lambda_subnet[*].id
+    subnet_ids         = module.vpc.subnet_ids
     security_group_ids = [aws_security_group.lambda_sg.id]
   }
 
@@ -524,53 +546,13 @@ resource "aws_lambda_function" "archiver" {
   })
 }
 
-# VPC for Lambda functions (enhanced security)
-resource "aws_vpc" "lambda_vpc" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  tags = merge(local.tags, {
-    Name = "${var.project_name}-vpc"
-  })
-}
-
-resource "aws_subnet" "lambda_subnet" {
-  count             = 2
-  vpc_id            = aws_vpc.lambda_vpc.id
-  cidr_block        = "10.0.${count.index}.0/24"
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-
-  tags = merge(local.tags, {
-    Name = "${var.project_name}-subnet-${count.index + 1}"
-  })
-}
-
-resource "aws_internet_gateway" "lambda_igw" {
-  vpc_id = aws_vpc.lambda_vpc.id
-
-  tags = merge(local.tags, {
-    Name = "${var.project_name}-igw"
-  })
-}
-
-resource "aws_route_table" "lambda_rt" {
-  vpc_id = aws_vpc.lambda_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.lambda_igw.id
-  }
-
-  tags = merge(local.tags, {
-    Name = "${var.project_name}-rt"
-  })
-}
-
-resource "aws_route_table_association" "lambda_rta" {
-  count          = 2
-  subnet_id      = aws_subnet.lambda_subnet[count.index].id
-  route_table_id = aws_route_table.lambda_rt.id
+# VPC for Lambda functions (enhanced security) - using module
+module "vpc" {
+  source       = "./modules/vpc"
+  vpc_cidr     = "10.0.0.0/16"
+  subnet_count = 2
+  project_name = var.project_name
+  tags         = local.tags
 }
 
 data "aws_availability_zones" "available" {
@@ -581,7 +563,7 @@ data "aws_availability_zones" "available" {
 resource "aws_security_group" "lambda_sg" {
   name_prefix = "${var.project_name}-lambda-"
   description = "Security group for Lambda functions"
-  vpc_id      = aws_vpc.lambda_vpc.id
+  vpc_id      = module.vpc.vpc_id
 
   # Allow HTTPS outbound for AWS API calls
   egress {
@@ -708,13 +690,18 @@ resource "aws_api_gateway_integration_response" "get_health" {
   http_method = aws_api_gateway_method.get_health.http_method
   status_code = "200"
 
-  # Add security headers
+  # Add comprehensive security headers
   response_parameters = {
-    "method.response.header.X-Content-Type-Options" = "'nosniff'"
-    "method.response.header.X-Frame-Options"        = "'DENY'"
-    "method.response.header.X-XSS-Protection"       = "'1; mode=block'"
-    "method.response.header.Strict-Transport-Security" = "'max-age=31536000; includeSubDomains'"
-    "method.response.header.Content-Security-Policy" = "'default-src 'self''"
+    "method.response.header.X-Content-Type-Options"     = "'nosniff'"
+    "method.response.header.X-Frame-Options"            = "'DENY'"
+    "method.response.header.X-XSS-Protection"           = "'1; mode=block'"
+    "method.response.header.Strict-Transport-Security"  = "'max-age=31536000; includeSubDomains; preload'"
+    "method.response.header.Content-Security-Policy"    = "'default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self''"
+    "method.response.header.Referrer-Policy"            = "'strict-origin-when-cross-origin'"
+    "method.response.header.Permissions-Policy"         = "'geolocation=(), microphone=(), camera=()'"
+    "method.response.header.Cross-Origin-Embedder-Policy" = "'require-corp'"
+    "method.response.header.Cross-Origin-Opener-Policy"   = "'same-origin'"
+    "method.response.header.Cross-Origin-Resource-Policy" = "'same-origin'"
   }
 
   response_templates = {
@@ -1282,11 +1269,13 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
 
         properties = {
-          metrics = flatten([
-            [["AWS/Lambda", "Errors", "FunctionName", aws_lambda_function.scanner.function_name]],
-            [[".", "Errors", ".", aws_lambda_function.api.function_name]],
+          metrics = concat(
+            [
+              ["AWS/Lambda", "Errors", "FunctionName", aws_lambda_function.scanner.function_name],
+              [".", "Errors", ".", aws_lambda_function.api.function_name]
+            ],
             var.enable_s3_archival ? [[".", "Errors", ".", aws_lambda_function.archiver[0].function_name]] : []
-          ])
+          )
           view    = "timeSeries"
           stacked = false
           region  = local.region
@@ -1302,11 +1291,13 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
 
         properties = {
-          metrics = flatten([
-            [["AWS/Lambda", "Duration", "FunctionName", aws_lambda_function.scanner.function_name]],
-            [[".", "Duration", ".", aws_lambda_function.api.function_name]],
+          metrics = concat(
+            [
+              ["AWS/Lambda", "Duration", "FunctionName", aws_lambda_function.scanner.function_name],
+              [".", "Duration", ".", aws_lambda_function.api.function_name]
+            ],
             var.enable_s3_archival ? [[".", "Duration", ".", aws_lambda_function.archiver[0].function_name]] : []
-          ])
+          )
           view    = "timeSeries"
           stacked = false
           region  = local.region
