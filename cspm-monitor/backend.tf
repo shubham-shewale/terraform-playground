@@ -1,7 +1,17 @@
 terraform {
   backend "s3" {
-    bucket = "your-terraform-state-bucket"  # Replace with actual bucket
+    # Replace with your actual S3 bucket for Terraform state
+    bucket = "your-terraform-state-bucket"
     key    = "cspm-monitor/terraform.tfstate"
     region = "us-east-1"
+
+    # Enable encryption for state file
+    encrypt = true
+
+    # Enable DynamoDB locking
+    # dynamodb_table = "your-terraform-locks-table"
+
+    # Enable versioning for state file recovery
+    # versioning = true
   }
 }

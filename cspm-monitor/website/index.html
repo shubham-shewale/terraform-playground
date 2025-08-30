@@ -3,44 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSPM Monitor Dashboard</title>
+    <title>AWS CSPM Monitor Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <header>
-        <h1>AWS CSPM Monitor</h1>
-    </header>
-    <main>
-        <section id="summary">
-            <h2>Security Findings Summary</h2>
-            <div id="stats">
-                <div class="stat">
+    <div class="container">
+        <header>
+            <h1>AWS CSPM Monitor</h1>
+            <p>Cloud Security Posture Management Dashboard</p>
+        </header>
+
+        <div class="dashboard">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="card">
                     <h3>Total Findings</h3>
-                    <p id="total-findings">0</p>
+                    <div class="metric" id="total-findings">0</div>
                 </div>
-                <div class="stat">
-                    <h3>High Severity</h3>
-                    <p id="high-severity">0</p>
+                <div class="card">
+                    <h3>Critical</h3>
+                    <div class="metric critical" id="critical-count">0</div>
+                </div>
+                <div class="card">
+                    <h3>High</h3>
+                    <div class="metric high" id="high-count">0</div>
+                </div>
+                <div class="card">
+                    <h3>Medium</h3>
+                    <div class="metric medium" id="medium-count">0</div>
                 </div>
             </div>
-        </section>
-        <section id="findings">
-            <h2>Recent Findings</h2>
-            <table id="findings-table">
-                <thead>
-                    <tr>
-                        <th>Resource Type</th>
-                        <th>Resource ID</th>
-                        <th>Issue</th>
-                        <th>Severity</th>
-                        <th>Timestamp</th>
-                    </tr>
-                </thead>
-                <tbody id="findings-body">
-                </tbody>
-            </table>
-        </section>
-    </main>
+
+            <!-- Controls -->
+            <div class="controls">
+                <div class="control-group">
+                    <label for="severity-filter">Filter by Severity:</label>
+                    <select id="severity-filter">
+                        <option value="">All Severities</option>
+                        <option value="CRITICAL">Critical</option>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                        <option value="INFORMATIONAL">Informational</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="limit-input">Limit:</label>
+                    <input type="number" id="limit-input" value="50" min="1" max="500">
+                </div>
+                <button id="refresh-btn" class="btn-primary">Refresh</button>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-container">
+                <div class="chart-card">
+                    <h3>Findings by Severity</h3>
+                    <canvas id="severityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Findings Table -->
+            <div class="table-container">
+                <h3>Security Findings</h3>
+                <table id="findings-table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>Resource Type</th>
+                            <th>Account ID</th>
+                            <th>Region</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="findings-tbody">
+                        <tr>
+                            <td colspan="6" class="loading">Loading findings...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2025 AWS CSPM Monitor. Real-time security monitoring dashboard.</p>
+        </footer>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
